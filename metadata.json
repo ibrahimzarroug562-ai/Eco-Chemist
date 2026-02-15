@@ -1,0 +1,8 @@
+{
+  "name": "Eco-Chemist: The Smart Learning Hub",
+  "description": "A high-fidelity PWA for chemistry learning, featuring AI-powered plastic identification, an interactive periodic table, and a smart study tutor. Built with a modern dark 'Eco-Tech' aesthetic.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
