@@ -22,16 +22,85 @@ const Scanner: React.FC<ScannerProps> = ({ lang, onScanComplete }) => {
 
   const startCamera = async () => {
     try {
+      setError(null);
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError(lang === 'en'
+          ? "Camera not supported in this browser. Please use Chrome, Firefox, or Edge."
+          : "الكاميرا غير مدعومة في هذا المتصفح. استخدم Chrome أو Firefox أو Edge");
+        return;
+      }
+
+      // Request camera permission with constraints
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
       });
+
       setStream(mediaStream);
+
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // Ensure video plays
+        videoRef.current.play().catch(e => {
+          console.error('Video play error:', e);
+        });
       }
+
       setError(null);
-    } catch (err) {
-      setError(lang === 'en' ? "Camera access denied." : "تم رفض الوصول للكاميرا");
+    } catch (err: any) {
+      console.error('Camera error:', err);
+
+      // Detailed error messages
+      let errorMessage = '';
+
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = lang === 'en'
+          ? "Camera permission denied. Please allow camera access in your browser settings."
+          : "تم رفض إذن الكاميرا. يرجى السماح بالوصول للكاميرا في إعدادات المتصفح.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = lang === 'en'
+          ? "No camera found. Please connect a camera and try again."
+          : "لم يتم العثور على كاميرا. يرجى توصيل كاميرا والمحاولة مرة أخرى.";
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = lang === 'en'
+          ? "Camera is already in use by another application. Please close other apps and try again."
+          : "الكاميرا قيد الاستخدام من تطبيق آخر. أغلق التطبيقات الأخرى وحاول مرة أخرى.";
+      } else if (err.name === 'OverconstrainedError') {
+        errorMessage = lang === 'en'
+          ? "Camera settings not supported. Trying with default settings..."
+          : "إعدادات الكاميرا غير مدعومة. جارٍ المحاولة بإعدادات افتراضية...";
+
+        // Retry with basic constraints
+        try {
+          const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          setStream(basicStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = basicStream;
+            videoRef.current.play();
+          }
+          setError(null);
+          return;
+        } catch (retryErr) {
+          errorMessage = lang === 'en'
+            ? "Camera access failed. Please check permissions."
+            : "فشل الوصول للكاميرا. تحقق من الأذونات.";
+        }
+      } else if (err.name === 'SecurityError') {
+        errorMessage = lang === 'en'
+          ? "Camera access blocked due to security settings. Please use HTTPS or localhost."
+          : "تم حظر الوصول للكاميرا بسبب إعدادات الأمان. استخدم HTTPS أو localhost.";
+      } else {
+        errorMessage = lang === 'en'
+          ? `Camera error: ${err.message || 'Unknown error'}. Please refresh and try again.`
+          : `خطأ في الكاميرا: ${err.message || 'خطأ غير معروف'}. يرجى التحديث والمحاولة مرة أخرى.`;
+      }
+
+      setError(errorMessage);
     }
   };
 
@@ -131,6 +200,23 @@ const Scanner: React.FC<ScannerProps> = ({ lang, onScanComplete }) => {
     <div className="flex flex-col items-center w-full max-w-md mx-auto p-4 animate-fade-in">
       <div className="relative w-full aspect-[3/4] bg-slate-900 rounded-[2.5rem] overflow-hidden border-2 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)] group">
 
+
+        {error && (
+          <div className="absolute inset-0 bg-slate-900/90 z-20 flex flex-col items-center justify-center p-6 text-center animate-fade-in backdrop-blur-sm">
+            <div className="p-4 bg-red-500/10 rounded-full mb-4 border border-red-500/20 animate-shake">
+              <AlertTriangle size={36} className="text-red-400" />
+            </div>
+            <p className="text-red-200 mb-6 font-medium max-w-[260px] leading-relaxed">{error}</p>
+            <button
+              onClick={startCamera}
+              className="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-2xl flex items-center gap-2 transition shadow-lg shadow-red-500/20 active:scale-95 font-bold"
+            >
+              <RefreshCw size={18} />
+              <span>{lang === 'en' ? 'Try Again' : 'حاول مرة أخرى'}</span>
+            </button>
+          </div>
+        )}
+
         {!capturedImage && (
           <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
         )}
@@ -153,22 +239,23 @@ const Scanner: React.FC<ScannerProps> = ({ lang, onScanComplete }) => {
           </div>
         )}
 
-        <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-4 px-6">
-          {!capturedImage ? (
-            !stream ? (
-              <button onClick={startCamera} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 p-6 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95">
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-4 px-6 z-10 pointer-events-none [&>button]:pointer-events-auto">
+          {!error && (
+            capturedImage ? (
+              <button onClick={reset} className="bg-slate-800/90 backdrop-blur-md hover:bg-slate-700 text-white px-8 py-4 rounded-3xl flex items-center gap-3 border border-white/5 transition-all shadow-xl font-bold hover:scale-105 active:scale-95">
+                <RefreshCw size={20} />
+                <span>{lang === 'en' ? 'New Scan' : 'تحليل جديد'}</span>
+              </button>
+            ) : !stream ? (
+              <button onClick={startCamera} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 p-6 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 animate-pulse-slow">
                 <Camera size={36} />
               </button>
             ) : (
-              <button onClick={capture} className="bg-white text-emerald-600 p-8 rounded-full shadow-2xl border-4 border-emerald-500/30 transition-all active:scale-90 group">
+              <button onClick={capture} className="bg-white text-emerald-600 p-8 rounded-full shadow-2xl border-4 border-emerald-500/30 transition-all hover:scale-105 active:scale-90 group relative cursor-pointer">
                 <div className="w-6 h-6 bg-emerald-600 rounded-full group-hover:scale-125 transition duration-300"></div>
+                <div className="absolute inset-0 rounded-full border border-emerald-500/20 animate-ping opacity-75"></div>
               </button>
             )
-          ) : (
-            <button onClick={reset} className="bg-slate-800/90 backdrop-blur-md hover:bg-slate-700 text-white px-8 py-4 rounded-3xl flex items-center gap-3 border border-white/5 transition-all shadow-xl font-bold">
-              <RefreshCw size={20} />
-              <span>{lang === 'en' ? 'New Scan' : 'تحليل جديد'}</span>
-            </button>
           )}
         </div>
       </div>
