@@ -1,39 +1,36 @@
-
-// @google/genai-api-fix: Refactored to use Firebase v8 compat syntax to resolve module export errors.
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 
-
 /**
- * إعدادات Firebase
- * تم تثبيت القيم لضمان التشغيل الفوري.
+ * Firebase Configuration
+ * Use environment variables for security.
+ * Ensure these are set in your .env file or deployment platform.
  */
 const firebaseConfig = {
-  apiKey: "AIzaSyBeNmcjRIH1ZxMEgBJAzlE716f7e2eQPHw",
-  authDomain: "eco-chemist.firebaseapp.com",
-  projectId: "eco-chemist",
-  storageBucket: "eco-chemist.firebasestorage.app",
-  messagingSenderId: "962097626578",
-  appId: "1:962097626578:web:f6d0a31c1ca7ce69175c0b"
+  apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY || "",
+  authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: (import.meta as any).env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: (import.meta as any).env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: (import.meta as any).env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: (import.meta as any).env.VITE_FIREBASE_APP_ID || ""
 };
 
-// تهيئة التطبيق
+// Initialize Firebase if not already initialized
 if (firebase.apps.length === 0) {
   firebase.initializeApp(firebaseConfig);
 }
 
-
-// تصدير خدمة المصادقة
+// Export Authentication Service
 export const auth = firebase.auth();
 
 /**
- * دالة لمراقبة حالة المستخدم (تسجيل دخول/خروج)
+ * Monitors user authentication state (Login/Logout)
  */
 export const subscribeToAuthChanges = (callback: (user: firebase.User | null) => void) => {
   return auth.onAuthStateChanged(callback);
 };
 
 /**
- * تسجيل الخروج من النظام
+ * Signs out the current user
  */
 export const logout = () => auth.signOut();
