@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Beaker, ScanLine, ChevronLeft, Home, LogOut, User, Trophy, Star, Target, Zap, Loader2, Leaf, Atom } from 'lucide-react';
+import { Beaker, ScanLine, ChevronLeft, Home, LogOut, User, Trophy, Star, Target, Zap, Loader2, Leaf, Atom, AlertCircle } from 'lucide-react';
 import Scanner from './components/Scanner';
 import StudyLabContainer from './components/StudyLab/StudyLabContainer';
 import AiTutor from './components/AiTutor';
@@ -7,11 +7,13 @@ import ScoreDisplay from './components/Gamification/ScoreDisplay';
 import Auth from './components/Auth';
 import MolecularBackground from './components/MolecularBackground';
 import LevelUpOverlay from './components/LevelUpOverlay';
+import GreenCompanion from './components/GreenCompanion';
 import { subscribeToAuthChanges, logout } from './services/firebase';
 import { Language, UserStats, UserProfile } from './types';
 import { MultiScore } from './types/gamification.types';
 
 const App: React.FC = () => {
+  const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState<'home' | 'scanner' | 'lab'>('home');
@@ -40,6 +42,17 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Safety check for production environment variables (common cause of white screen on GH Pages)
+    const requiredKeys = [
+      import.meta.env.VITE_FIREBASE_API_KEY,
+      import.meta.env.VITE_GEMINI_API_KEY
+    ];
+    if (requiredKeys.some(key => !key)) {
+      console.error("Critical: Environment variables missing. Ensure GitHub Secrets are configured.");
+      // In local dev we might allow it, but in prod it's fatal
+      if (import.meta.env.PROD) setApiKeyError(true);
+    }
+
     const unsubscribe = subscribeToAuthChanges((firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -77,12 +90,41 @@ const App: React.FC = () => {
     setActiveView('home');
   };
 
+  if (apiKeyError) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+        <MolecularBackground />
+        <div className="bg-red-500/10 border border-red-500/20 p-8 rounded-[2rem] backdrop-blur-xl max-w-md relative z-10">
+          <AlertCircle className="text-red-500 mx-auto mb-4" size={48} />
+          <h1 className="text-2xl font-black text-white mb-2">Configuration Missing</h1>
+          <p className="text-slate-400 text-sm mb-6">
+            The application is missing required API keys. If you are seeing this on GitHub Pages, please configure your <b>Secrets</b>.
+          </p>
+          <div className="text-xs text-left bg-black/40 p-4 rounded-xl font-mono text-red-300 overflow-x-auto">
+            VITE_FIREBASE_API_KEY: {import.meta.env.VITE_FIREBASE_API_KEY ? '✅' : '❌'}<br />
+            VITE_GEMINI_API_KEY: {import.meta.env.VITE_GEMINI_API_KEY ? '✅' : '❌'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 relative overflow-hidden">
         <MolecularBackground />
-        <Loader2 className="animate-spin text-emerald-500 relative z-10" size={48} />
-        <span className="text-emerald-500 font-black tracking-widest uppercase text-xs relative z-10">Initializing Lab...</span>
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="relative">
+            <Atom className="text-emerald-500 animate-spin-slow" size={64} />
+            <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full"></div>
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-emerald-400 font-black tracking-[0.3em] uppercase text-xs animate-pulse">Initializing Lab</span>
+            <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+              <div className="w-1/3 h-full bg-emerald-500 animate-[loading_2s_infinite]"></div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -271,6 +313,15 @@ const App: React.FC = () => {
           {activeView === 'lab' && <span className="text-xs tracking-wide">{lang === 'ar' ? 'المختبر' : 'Lab'}</span>}
         </button>
       </nav>
+
+      {/* Integrated Global AI Companion */}
+      <GreenCompanion
+        lang={lang}
+        context={{
+          activeView,
+          stats: stats
+        }}
+      />
 
     </div>
   );

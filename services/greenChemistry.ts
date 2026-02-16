@@ -105,7 +105,7 @@ export function calculateGreenScore(impact: EnvironmentalImpact): {
     const recommendations: string[] = [];
 
     // Principle 1: Waste Prevention (based on waste generation)
-    scores.wastePrevent ion = impact.wasteGeneration < 5 ? 100 :
+    scores.wastePrevention = impact.wasteGeneration < 5 ? 100 :
         impact.wasteGeneration < 15 ? 70 :
             impact.wasteGeneration < 30 ? 40 : 20;
 

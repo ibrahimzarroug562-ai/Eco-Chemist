@@ -16,8 +16,14 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase if not already initialized
-if (firebase.apps.length === 0) {
-  firebase.initializeApp(firebaseConfig);
+try {
+  if (firebaseConfig.apiKey && firebase.apps.length === 0) {
+    firebase.initializeApp(firebaseConfig);
+  } else if (!firebaseConfig.apiKey) {
+    console.warn("Firebase API key is missing. Auth features will be disabled.");
+  }
+} catch (error) {
+  console.error("Firebase init error:", error);
 }
 
 // Export Authentication Service
